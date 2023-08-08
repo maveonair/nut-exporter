@@ -1,15 +1,16 @@
 package metrics
 
 import (
-	"log"
-	"net/http"
-
-	"github.com/maveonair/nut-exporter/internal/config"
+	"github.com/maveonair/nut-exporter/internal/nut"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
+	probeMetric = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "nut_probe_success",
+		Help: "Whether the NUT probe was successful",
+	})
+
 	batteryCharge = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "nut_battery_charge",
 		Help: "Battery charge (percent)",
@@ -31,30 +32,32 @@ var (
 	})
 )
 
-func init() {
-	prometheus.MustRegister(batteryCharge)
-	prometheus.MustRegister(upsLoad)
-	prometheus.MustRegister(upsRealpowerNominal)
-	prometheus.MustRegister(upsOnLinePower)
+func CreateRegistryWithMetrics(state nut.UPSState) *prometheus.Registry {
+	registry := CreateDefaultErrorRegistry()
+	probeMetric.Set(1)
+
+	registry.MustRegister(batteryCharge)
+	batteryCharge.Set(float64(state.BatteryCharge))
+
+	registry.MustRegister(upsLoad)
+	upsLoad.Set(float64(state.UPSLoad))
+
+	registry.MustRegister(upsRealpowerNominal)
+	upsRealpowerNominal.Set(float64(state.UPSRealPowerNominal))
+
+	registry.MustRegister(upsOnLinePower)
+	if state.IsOnLinePower {
+		upsOnLinePower.Set(1)
+	} else {
+		upsOnLinePower.Set(0)
+	}
+
+	return registry
 }
 
-func Serve(config config.Config) {
-	http.Handle("/metrics", promhttp.Handler())
-	log.Fatal(http.ListenAndServe(config.ListeningAddr, nil))
-}
-
-func SetBatteryCharge(value int64) {
-	batteryCharge.Set(float64(value))
-}
-
-func SetUpsLoad(value int64) {
-	upsLoad.Set(float64(value))
-}
-
-func SetUpsRealpowerNominal(value int64) {
-	upsRealpowerNominal.Set(float64(value))
-}
-
-func SetUpsOnLinePower(value int64) {
-	upsOnLinePower.Set(float64(value))
+func CreateDefaultErrorRegistry() *prometheus.Registry {
+	errorRegistry := prometheus.NewRegistry()
+	errorRegistry.MustRegister(probeMetric)
+	probeMetric.Set(0)
+	return errorRegistry
 }

@@ -1,16 +1,11 @@
 [Unit]
 Description=nut-exporter service
-After=network.target
-StartLimitIntervalSec=0
+Requires=network-online.target
+After=network-online.target
 
 [Service]
 Type=simple
-
-# Adjust this configuration to your needs
-Environment=UPS_SERVER=127.0.0.1
-Environment=LISTENING_ADDR=0.0.0.0:9055
-Environment=INTERVAL=15
-
+User=nut-exporter
 ExecStart=/usr/bin/nut-exporter
 Restart=always
 RestartSec=10

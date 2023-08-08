@@ -2,6 +2,8 @@
 
 This tool exposes Network UPS (nuts) statistics as Prometheus metrics.
 
+This exporter works similar to the [Blackbox Exporter](https://github.com/prometheus/blackbox_exporter) where you can specify different targets in Prometheus to scrape Mikrotik devices through this exporter.
+
 ## Exposed Metrics
 
 | Metric                    | Definition                                               |
@@ -11,21 +13,27 @@ This tool exposes Network UPS (nuts) statistics as Prometheus metrics.
 | nut_ups_realpower_nominal | Nominal value of real power (Watts)                      |
 | nut_ups_on_line_power     | Displays whether or not the ups is running on line power |
 
-## Configuration
+## Prometheus Configuration
 
-The following environment variables are required to start the service:
+This exporter implements the multi-target exporter pattern, therefore we recommend reading the guide [Understanding and using the multi-target exporter pattern](https://prometheus.io/docs/guides/multi-target-exporter/) to get an overview of the configuration.
 
-| Environment Variable | Definition                                                  | Example       |
-| -------------------- | ----------------------------------------------------------- | ------------- |
-| UPS_SERVER           | IP address of the UPS server                                | 192.168.1.100 |
-| LISTENING_ADDR       | The listening address to which the service binds itself     | 0.0.0.0:9055  |
-| INTERVAL             | Polling interval to get the latest information from the UPS | 15            |
+The target must be passed to the nut-exporter as a parameter, this can be done with relabelling.
 
-## Development
+Example config:
 
-### Run locally
-
-```sh
-$ cp .env.example .env # adjust the values to yorur needs!
-$ make dev
+```yaml
+scrape_configs:
+  - job_name: "nut"
+    metrics_path: /probe
+    static_configs:
+      - targets:
+          - 10.0.1.1
+          - 10.0.20.1
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 127.0.0.1:9055 # The nut-exporter's real hostname:port.
 ```
